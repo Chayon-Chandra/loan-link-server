@@ -5,12 +5,36 @@ const cors = require('cors');
 const app = express();
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-
+const admin = require("firebase-admin");
 const port = process.env.PORT || 3000;
+
+const serviceAccount = require("./bank-loan-firebase-admin-key.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
 
 // Middleware
 app.use(express.json());
 app.use(cors());
+
+const verifyFirebaseToken = async(req, res, next) => {
+  const authorization = req.headers.authorization;
+  if(!authorization){
+    return res.status(401).send({message: 'unauthorization access'})
+  }
+  const token = authorization.split(' ')[1];
+  try{
+    const decoded = await admin.auth().verifyIdToken(token);
+    console.log('inside token decoded', decoded);
+    req.token_email = decoded.email;
+    next();
+  }
+  catch(error){
+     return res.status(401).send({message: 'unauthorization access'})
+  }
+
+}
 
 // MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.gs8nds9.mongodb.net/?appName=Cluster0`;
@@ -34,19 +58,6 @@ async function run() {
     const loanCollection = database.collection('loans');
     const loanApplication = database.collection('loan-application');
     const usersCollection = database.collection('users');
-
-    // ===== Middleware =====
-    const verifyManager = async (req, res, next) => {
-      const email = req.query.email;
-      if (!email) return res.status(401).send({ message: "Unauthorized" });
-
-      const user = await usersCollection.findOne({ email });
-      if (!user) return res.status(401).send({ message: "User not found" });
-
-      if (user.role !== "manager") return res.status(403).send({ message: "Forbidden access" });
-
-      next();
-    };
 
     // ===== User APIs =====
 
@@ -77,7 +88,7 @@ async function run() {
     });
 
     // Make a user manager (Manager only)
-    app.patch("/users/make-manager/:id", verifyManager, async (req, res) => {
+    app.patch("/users/make-manager/:id", verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
       const result = await usersCollection.updateOne(
         { _id: new ObjectId(id) },
@@ -151,7 +162,7 @@ async function run() {
     });
 
     // Get pending loans (Manager only)
-    app.get('/pending-loans', verifyManager, async (req, res) => {
+    app.get('/pending-loans', verifyFirebaseToken, async (req, res) => {
       const loans = await loanApplication
         .find({ status: 'pending' })
         .sort({ appliedAt: -1 })
@@ -160,7 +171,7 @@ async function run() {
     });
 
     // Update loan status (Manager only)
-    app.patch('/update-loan/:id', verifyManager, async (req, res) => {
+    app.patch('/update-loan/:id', verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
       const { status } = req.body;
       const result = await loanApplication.updateOne(
