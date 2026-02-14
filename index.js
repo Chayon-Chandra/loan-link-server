@@ -53,7 +53,7 @@ app.get('/', (req, res) => {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const database = client.db('loan-link');
     const loanCollection = database.collection('loans');
@@ -212,7 +212,9 @@ async function run() {
 }
 
 run().catch(console.dir);
-
+app.get("/", (req, res) => {
+  res.send('server is runing')
+})
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
