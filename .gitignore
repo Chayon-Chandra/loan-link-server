@@ -1,3 +1,4 @@
 node_modules
 .env
 bank-loan-firebase-admin-key.json
+.vercel

@@ -8,7 +8,8 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const admin = require("firebase-admin");
 const port = process.env.PORT || 3000;
 
-const serviceAccount = require("./bank-loan-firebase-admin-key.json");
+const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
+const serviceAccount = JSON.parse(decoded);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -203,15 +204,13 @@ async function run() {
   });
 
 
-
+//  await client.db("admin").command({ ping: 1 });
     console.log('Successfully connected to MongoDB!');
   } finally {
-    // Optional: await client.close();
+    
   }
 }
 
 run().catch(console.dir);
 
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
+module.exports = app;
